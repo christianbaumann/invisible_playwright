@@ -377,7 +377,7 @@ Add integration tests that exercise the full darwin pipeline: `generate_profile(
 
 ### Changes Required:
 
-#### [ ] 1. Add darwin integration tests
+#### [x] 1. Add darwin integration tests
 **File**: `tests/test_integration.py`
 
 New tests (mirroring existing Linux/Windows integration test patterns):
@@ -394,13 +394,13 @@ New tests (mirroring existing Linux/Windows integration test patterns):
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_integration.py -v` — all pass
-- [ ] `pytest` — full suite passes
+- [x] `pytest tests/test_integration.py -v` — all pass
+- [x] `pytest` — full suite passes
 
 #### Phase Gate:
-- [ ] Run `pytest` — all tests pass, fix any failures
-- [ ] Update plan status for Phase 4 to `complete`
-- [ ] Commit changes
+- [x] Run `pytest` — all tests pass, fix any failures
+- [x] Update plan status for Phase 4 to `complete`
+- [x] Commit changes
 - [ ] Pause for confirmation before proceeding to Phase 5
 
 ---

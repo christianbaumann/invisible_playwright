@@ -4,9 +4,9 @@ These tests verify that the fingerprint sampler, Profile dataclass, prefs
 translation and proxy translation compose correctly. They do NOT launch
 Firefox. Browser-lifecycle tests live in ``test_e2e.py``.
 
-Scope: Windows, Linux, and platform-agnostic. Platform-specific tests
-monkeypatch ``sys.platform`` so the same suite exercises both branches
-regardless of the host OS.
+Scope: Windows, Linux, macOS (darwin), and platform-agnostic.
+Platform-specific tests monkeypatch ``sys.platform`` so the same suite
+exercises all branches regardless of the host OS.
 """
 from __future__ import annotations
 
@@ -370,3 +370,153 @@ def test_linux_font_metrics_include_generic_factors(monkeypatch):
 
     metrics = prefs["zoom.stealth.font.metrics"]
     assert metrics.startswith(_LINUX_GENERIC_FONT_FACTORS)
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  IT14: darwin pipeline — profile → prefs yields a complete prefs dict
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_darwin_pipeline_produces_valid_prefs(monkeypatch):
+    """IT14 — full pipeline on darwin produces a prefs dict with every
+    required key present."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    profile = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(profile)
+
+    missing = [k for k in _REQUIRED_PREFS_KEYS if k not in prefs]
+    assert not missing, f"darwin prefs missing required keys: {missing}"
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  IT15: darwin GPU renderer flows through from profile to prefs
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_darwin_gpu_renderer_from_profile_in_pipeline(monkeypatch):
+    """IT15 — on darwin the GPU renderer/vendor are spoofed from the
+    profile (same as Linux), not cleared (Windows behavior)."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    profile = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(profile)
+
+    assert prefs["zoom.stealth.webgl.renderer"] == profile.gpu.renderer
+    assert prefs["zoom.stealth.webgl.renderer"]  # non-empty
+    assert prefs["zoom.stealth.webgl.vendor"] == profile.gpu.vendor
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  IT16: darwin font metrics prepended with macOS generic factors
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_darwin_font_metrics_include_generic_factors(monkeypatch):
+    """IT16 — on darwin the font metrics pref starts with the macOS
+    CoreText compensation factors."""
+    from invisible_playwright.prefs import _MACOS_GENERIC_FONT_FACTORS
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    profile = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(profile)
+
+    metrics = prefs["zoom.stealth.font.metrics"]
+    assert metrics.startswith(_MACOS_GENERIC_FONT_FACTORS)
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  IT17: darwin WebGL extensions are NOT cleared (unlike Windows)
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_darwin_webgl_extensions_not_cleared_in_pipeline(monkeypatch):
+    """IT17 — on darwin the curated WebGL extension lists from _BASELINE
+    are preserved. Only Windows clears them."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    profile = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(profile)
+
+    assert prefs["zoom.stealth.webgl.extensions"] != ""
+    assert prefs["zoom.stealth.webgl2.extensions"] != ""
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  IT18: darwin does NOT get Xvfb workarounds
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_darwin_xvfb_workarounds_absent_in_pipeline(monkeypatch):
+    """IT18 — Xvfb workarounds (WebRender disable, force WebGL) must
+    NOT appear on darwin. These are Linux-only."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    profile = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(profile)
+
+    assert "gfx.webrender.force-disabled" not in prefs
+    assert "webgl.force-enabled" not in prefs
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  IT19: darwin does NOT get Windows virtual-desktop workarounds
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_darwin_virtual_display_workarounds_absent_in_pipeline(monkeypatch):
+    """IT19 — Windows sandbox/GPU workarounds must NOT appear on darwin,
+    even when virtual_display=True is passed."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    profile = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(profile, virtual_display=True)
+
+    assert "security.sandbox.gpu.level" not in prefs
+    assert "gfx.canvas.accelerated" not in prefs
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  IT20: darwin MSAA from profile, not pinned to 4
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_darwin_msaa_pin_propagates_through_pipeline(monkeypatch):
+    """IT20 — pinning MSAA on darwin survives the prefs translation
+    (same as Linux). Windows would override to 4."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    profile = generate_profile(seed=42, pin={"webgl.msaa_samples": 8})
+    prefs = translate_profile_to_prefs(profile)
+
+    assert prefs["zoom.stealth.webgl.msaa"] == 8
+    assert prefs["webgl.msaa-samples"] == 8
+    assert prefs["webgl.msaa-force"] is True
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  IT21: darwin SOCKS proxy + prefs compose correctly
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_darwin_socks_proxy_with_prefs(monkeypatch):
+    """IT21 — darwin prefs + SOCKS5 proxy: both branches land their keys
+    in the prefs dict and don't clobber each other."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    profile = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(profile)
+    pw_proxy = configure_proxy(
+        {"server": "socks5://127.0.0.1:1080"}, prefs
+    )
+
+    assert pw_proxy is None
+    # SOCKS branch wrote its keys.
+    assert prefs["network.proxy.type"] == 1
+    assert prefs["network.proxy.socks"] == "127.0.0.1"
+    # GPU renderer is spoofed from the profile (not cleared like on Windows).
+    assert prefs["zoom.stealth.webgl.renderer"] == profile.gpu.renderer
+    # No Xvfb or Windows sandbox keys leaked in.
+    assert "gfx.webrender.force-disabled" not in prefs
+    assert "security.sandbox.gpu.level" not in prefs
