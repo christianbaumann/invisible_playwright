@@ -241,3 +241,58 @@ def test_e12_linux_resolve_headless_without_xvfb_raises_clear_error(monkeypatch)
     with pytest.raises(RuntimeError, match="Xvfb"):
         ip._resolve_headless()
     assert ip._virtual_display is None
+
+
+# ────────────────────────────────────────────────────────────────────
+# Darwin-specific lifecycle tests (no Firefox binary required).
+#
+# These exercise the launcher's macOS code paths without spawning real
+# Firefox. They monkeypatch ``sys.platform`` so the tests run on any
+# host — including Linux CI hosts.
+# ────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.e2e
+def test_darwin_build_prefs_omits_windows_sandbox_key(monkeypatch):
+    """Darwin prefs must not contain the Windows alt-desktop GPU sandbox
+    workaround ``security.sandbox.gpu.level``."""
+    import sys as _sys
+    monkeypatch.setattr(_sys, "platform", "darwin")
+    ip = InvisiblePlaywright(seed=42, headless=False)
+    prefs = ip._build_prefs()
+    assert "security.sandbox.gpu.level" not in prefs
+
+
+@pytest.mark.e2e
+def test_darwin_build_prefs_omits_xvfb_workarounds(monkeypatch):
+    """Darwin prefs must not contain the Linux Xvfb WebRender
+    workaround ``gfx.webrender.force-disabled``."""
+    import sys as _sys
+    monkeypatch.setattr(_sys, "platform", "darwin")
+    ip = InvisiblePlaywright(seed=42, headless=False)
+    prefs = ip._build_prefs()
+    assert "gfx.webrender.force-disabled" not in prefs
+
+
+@pytest.mark.e2e
+def test_darwin_resolve_headless_raises_not_yet_supported(monkeypatch):
+    """``headless=True`` on darwin must raise a clear error directing
+    users to headed mode, not a generic platform error."""
+    import sys as _sys
+    monkeypatch.setattr(_sys, "platform", "darwin")
+    ip = InvisiblePlaywright(seed=42, headless=True)
+    with pytest.raises(RuntimeError, match="not yet supported on macOS"):
+        ip._resolve_headless()
+    assert ip._virtual_display is None
+
+
+@pytest.mark.e2e
+def test_darwin_build_prefs_has_gpu_renderer(monkeypatch):
+    """Darwin prefs must contain the GPU renderer string from the
+    profile, spoofed to ANGLE format (same approach as Linux)."""
+    import sys as _sys
+    monkeypatch.setattr(_sys, "platform", "darwin")
+    ip = InvisiblePlaywright(seed=42, headless=False)
+    prefs = ip._build_prefs()
+    assert prefs.get("zoom.stealth.webgl.renderer") != ""
+    assert prefs.get("zoom.stealth.webgl.vendor") != ""

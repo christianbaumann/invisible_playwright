@@ -4,7 +4,7 @@ git_commit: 70c1ca464f60530d935c630381713bd4ae82e966
 branch: main
 topic: "macOS Apple Silicon Port (Python-side)"
 tags: [plan, macos, apple-silicon, platform-port]
-status: draft
+status: complete
 ---
 
 # macOS Apple Silicon Port — Implementation Plan
@@ -412,12 +412,12 @@ Add e2e tests that verify the launcher correctly routes darwin through the prefs
 
 ### Changes Required:
 
-#### [ ] 1. Update `firefox_binary` fixture skip logic
+#### [x] 1. Update `firefox_binary` fixture skip logic
 **File**: `tests/test_e2e.py`
 
 The fixture checks `sys.platform in BINARY_ENTRY_REL` (line 28). Since `BINARY_ENTRY_REL` now includes `"darwin"`, the fixture will no longer auto-skip on macOS — it will try to find a cached binary. If no binary is present, the existing skip at line 33-36 handles it. No change needed.
 
-#### [ ] 2. Add darwin launcher tests
+#### [x] 2. Add darwin launcher tests
 **File**: `tests/test_e2e.py`
 
 New tests (do NOT require the patched binary — use monkeypatch):
@@ -430,12 +430,12 @@ New tests (do NOT require the patched binary — use monkeypatch):
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_e2e.py -v` — all pass
-- [ ] `pytest` — full suite passes (all 100+ tests green)
+- [x] `pytest tests/test_e2e.py -v` — all pass
+- [x] `pytest` — full suite passes (all 100+ tests green)
 
 #### Phase Gate:
-- [ ] Run `pytest` — all tests pass, fix any failures
-- [ ] Update plan status for Phase 5 to `complete`
+- [x] Run `pytest` — all tests pass, fix any failures
+- [x] Update plan status for Phase 5 to `complete`
 - [ ] Commit changes
 - [ ] Pause for confirmation before proceeding
 
