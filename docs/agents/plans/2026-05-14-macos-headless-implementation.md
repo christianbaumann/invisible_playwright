@@ -153,7 +153,7 @@ Append a new section `## Spike Results (Phase 1)` documenting:
 #### Manual Verification:
 - [x] All 5 spike tests executed on macOS with Aqua session (Test 2 skipped — no Firefox binary cached)
 - [x] Results documented in research doc
-- [ ] Firefox screenshot is not blank (proves rendering works on virtual display) — BLOCKED: patched Firefox binary not cached
+- [ ] Firefox screenshot is not blank (proves rendering works on virtual display) — deferred to Phase 4
 - [x] All display origins restored to pre-test positions (multi-monitor safe)
 - [x] Spike script deleted after results documented
 
@@ -580,6 +580,56 @@ Update the macOS section to document:
 - [ ] No stale "not yet supported" references remain in docs
 
 **Implementation Note**: After completing this phase, pause for final review.
+
+---
+
+## Phase 4: Firefox Binary + Manual Headless Verification
+
+### Overview
+Cache the patched Firefox binary for macOS and complete the manual verification steps that were blocked in Phase 1 (spike Test 2) and Phase 2. This phase gates the "ship it" decision — if Firefox doesn't render correctly on CGVirtualDisplay, the approach must be revised.
+
+### Changes Required:
+
+#### [ ] 1. Cache the patched Firefox binary
+Run `invisible-playwright fetch` or build the macOS arm64 binary if the release asset doesn't exist yet. The binary must land at `~/Library/Caches/invisible-playwright/firefox-1/Firefox.app/Contents/MacOS/firefox`.
+
+If the release asset is still missing (404), build from source or copy from another machine. The binary path can also be supplied manually via `binary_path=`.
+
+#### [ ] 2. Verify Firefox renders on CGVirtualDisplay (spike Test 2)
+Launch Firefox on a CGVirtualDisplay via `InvisiblePlaywright(headless=True)`, navigate to a test page, take a screenshot, and verify it is not blank.
+
+```python
+from invisible_playwright import InvisiblePlaywright
+
+with InvisiblePlaywright(headless=True, seed=42) as browser:
+    page = browser.new_context().new_page()
+    page.set_content("<h1 style='background:red;color:white;font-size:72px'>CGVirtualDisplay Test</h1>")
+    page.screenshot(path="/tmp/headless_verify.png")
+    print("Screenshot saved — verify /tmp/headless_verify.png is not blank")
+```
+
+#### [ ] 3. Verify display arrangement restored after session
+After the `with` block exits, confirm the physical display layout matches its pre-test state (no drift).
+
+#### [ ] 4. Run full E2E test suite with real Firefox
+```bash
+pytest tests/test_e2e.py -v
+```
+All tests that require `firefox_binary` fixture should now run (not skip).
+
+#### [ ] 5. Verify PyObjC-missing error path
+Temporarily uninstall `pyobjc-framework-Quartz`, attempt `InvisiblePlaywright(headless=True)`, and confirm the error message is clear and actionable. Reinstall afterwards.
+
+### Success Criteria:
+
+#### Manual Verification:
+- [ ] Firefox binary cached and runnable on macOS
+- [ ] Screenshot from headless session is not blank (Firefox renders on CGVirtualDisplay)
+- [ ] Display arrangement restored after browser session exits
+- [ ] All `firefox_binary`-gated E2E tests pass
+- [ ] PyObjC-missing error message is clear
+
+**Implementation Note**: If Firefox does not render correctly on the CGVirtualDisplay, stop and revise the plan. If all checks pass, the macOS headless feature is complete.
 
 ---
 
