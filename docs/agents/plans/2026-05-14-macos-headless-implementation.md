@@ -168,7 +168,7 @@ Add the `_MacOSVirtualDisplay` class, wire it into the dispatcher, add `pyobjc-f
 
 ### Changes Required:
 
-#### [ ] 1. Add pyobjc-framework-Quartz dependency
+#### [x] 1. Add pyobjc-framework-Quartz dependency
 **File**: `pyproject.toml`
 **After line 27** (after the pywin32 dependency):
 
@@ -176,7 +176,7 @@ Add the `_MacOSVirtualDisplay` class, wire it into the dispatcher, add `pyobjc-f
 "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
 ```
 
-#### [ ] 2. Implement `_MacOSVirtualDisplay`
+#### [x] 2. Implement `_MacOSVirtualDisplay`
 **File**: `src/invisible_playwright/_headless.py`
 **After**: `_WindowsVirtualDesktop` class (line 210), before `make_virtual_display()`
 
@@ -316,7 +316,7 @@ class _MacOSVirtualDisplay:
 - Make-primary doesn't work: pivot to different window targeting (out of scope, requires re-planning)
 - Firefox doesn't render on CGVirtualDisplay: entire approach must change (re-plan)
 
-#### [ ] 3. Update `make_virtual_display()` dispatcher
+#### [x] 3. Update `make_virtual_display()` dispatcher
 **File**: `src/invisible_playwright/_headless.py`
 **Lines**: 212-225
 
@@ -339,7 +339,7 @@ Changes:
 - Darwin branch returns `_MacOSVirtualDisplay()` instead of raising
 - Unsupported platform error updated to mention macOS
 
-#### [ ] 4. Update `test_headless.py` — remove darwin-raises tests, add macOS class tests
+#### [x] 4. Update `test_headless.py` — remove darwin-raises tests, add macOS class tests
 **File**: `tests/test_headless.py`
 
 **Remove** (no longer applicable):
@@ -432,7 +432,7 @@ def test_macos_start_raises_when_cgvirtualdisplay_unavailable(monkeypatch):
         vd.start()
 ```
 
-#### [ ] 5. Update `test_e2e.py` — darwin headless tests
+#### [x] 5. Update `test_e2e.py` — darwin headless tests
 **File**: `tests/test_e2e.py`
 
 **Replace** `test_darwin_resolve_headless_raises_not_yet_supported` with:
@@ -494,7 +494,7 @@ def test_darwin_teardown_stops_virtual_display_and_is_idempotent(monkeypatch):
     assert len(stop_count) == 1  # second teardown skips (vd set to None)
 ```
 
-#### [ ] 6. Update import in `test_headless.py`
+#### [x] 6. Update import in `test_headless.py`
 **File**: `tests/test_headless.py`
 
 Add `_MacOSVirtualDisplay` to the import:
@@ -511,9 +511,9 @@ from invisible_playwright._headless import (
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_headless.py -v` — all pass (new + updated tests)
-- [ ] `pytest tests/test_e2e.py -v` — all pass (updated darwin tests)
-- [ ] `pytest` — full suite passes (no regressions)
+- [x] `pytest tests/test_headless.py -v` — all pass (new + updated tests)
+- [x] `pytest tests/test_e2e.py -v` — all pass (updated darwin tests)
+- [x] `pytest` — full suite passes (no regressions)
 
 #### Manual Verification:
 - [ ] On macOS with Aqua session: `InvisiblePlaywright(headless=True, binary_path="...")` launches Firefox invisibly
@@ -648,25 +648,25 @@ Follow the test pyramid: many unit tests at the base, fewer integration/e2e test
 ### Unit Tests (test_headless.py — fast, isolated):
 
 #### New:
-- [ ] `test_make_virtual_display_returns_macos_display_on_darwin` — dispatcher returns correct type `[HAPPY]`
-- [ ] `test_macos_virtual_display_initial_state_is_clean` — no resources on construction `[HAPPY]`
-- [ ] `test_macos_virtual_display_default_dimensions` — 1920x1080 default `[HAPPY]`
-- [ ] `test_macos_virtual_display_custom_dimensions` — caller-supplied dimensions `[ECP]`
-- [ ] `test_macos_virtual_display_stop_without_start_is_safe` — idempotent stop `[ST]`
-- [ ] `test_macos_start_raises_when_pyobjc_missing` — clear error message `[NEG]`
-- [ ] `test_macos_start_raises_when_cgvirtualdisplay_unavailable` — macOS 14+ message (macOS-only) `[NEG]`
+- [x] `test_make_virtual_display_returns_macos_display_on_darwin` — dispatcher returns correct type `[HAPPY]`
+- [x] `test_macos_virtual_display_initial_state_is_clean` — no resources on construction `[HAPPY]`
+- [x] `test_macos_virtual_display_default_dimensions` — 1920x1080 default `[HAPPY]`
+- [x] `test_macos_virtual_display_custom_dimensions` — caller-supplied dimensions `[ECP]`
+- [x] `test_macos_virtual_display_stop_without_start_is_safe` — idempotent stop `[ST]`
+- [x] `test_macos_start_raises_when_pyobjc_missing` — clear error message `[NEG]`
+- [x] `test_macos_start_raises_when_cgvirtualdisplay_unavailable` — macOS 14+ message (macOS-only) `[NEG]`
 
 #### Updated:
-- [ ] `test_make_virtual_display_raises_on_unsupported_platform` — new error message match `[NEG]`
+- [x] `test_make_virtual_display_raises_on_unsupported_platform` — new error message match `[NEG]`
 
 #### Removed:
-- [ ] `test_make_virtual_display_raises_on_darwin` — replaced by dispatch test
-- [ ] `test_make_virtual_display_darwin_error_suggests_headed_mode` — no longer applicable
+- [x] `test_make_virtual_display_raises_on_darwin` — replaced by dispatch test
+- [x] `test_make_virtual_display_darwin_error_suggests_headed_mode` — no longer applicable
 
 #### Regression — existing tests must still pass:
-- [ ] All Windows dispatch + construction tests unchanged
-- [ ] All Linux dispatch + construction + geometry + stop tests unchanged
-- [ ] `test_make_virtual_display_error_mentions_offending_platform` — unchanged (matches platform string)
+- [x] All Windows dispatch + construction tests unchanged
+- [x] All Linux dispatch + construction + geometry + stop tests unchanged
+- [x] `test_make_virtual_display_error_mentions_offending_platform` — unchanged (matches platform string)
 
 ### Integration Tests (test_integration.py):
 
@@ -675,15 +675,15 @@ No changes needed. macOS headless requires no pref changes (research: "No headle
 ### E2E Tests (test_e2e.py — launcher routing):
 
 #### Replaced:
-- [ ] `test_darwin_resolve_headless_raises_not_yet_supported` → `test_darwin_resolve_headless_creates_virtual_display` `[HAPPY]`
+- [x] `test_darwin_resolve_headless_raises_not_yet_supported` → `test_darwin_resolve_headless_creates_virtual_display` `[HAPPY]`
 
 #### New:
-- [ ] `test_darwin_teardown_stops_virtual_display_and_is_idempotent` — double teardown safe `[ST]`
+- [x] `test_darwin_teardown_stops_virtual_display_and_is_idempotent` — double teardown safe `[ST]`
 
 #### Regression — existing darwin e2e tests must still pass:
-- [ ] `test_darwin_build_prefs_omits_windows_sandbox_key` — unchanged
-- [ ] `test_darwin_build_prefs_omits_xvfb_workarounds` — unchanged
-- [ ] `test_darwin_build_prefs_has_gpu_renderer` — unchanged
+- [x] `test_darwin_build_prefs_omits_windows_sandbox_key` — unchanged
+- [x] `test_darwin_build_prefs_omits_xvfb_workarounds` — unchanged
+- [x] `test_darwin_build_prefs_has_gpu_renderer` — unchanged
 
 ### Manual Testing Steps:
 *Cannot be automated — require real macOS + Aqua session + patched Firefox binary.*

@@ -275,15 +275,52 @@ def test_darwin_build_prefs_omits_xvfb_workarounds(monkeypatch):
 
 
 @pytest.mark.e2e
-def test_darwin_resolve_headless_raises_not_yet_supported(monkeypatch):
-    """``headless=True`` on darwin must raise a clear error directing
-    users to headed mode, not a generic platform error."""
-    import sys as _sys
-    monkeypatch.setattr(_sys, "platform", "darwin")
-    ip = InvisiblePlaywright(seed=42, headless=True)
-    with pytest.raises(RuntimeError, match="not yet supported on macOS"):
-        ip._resolve_headless()
-    assert ip._virtual_display is None
+def test_darwin_resolve_headless_creates_virtual_display(monkeypatch):
+    """headless=True on darwin creates and starts a _MacOSVirtualDisplay
+    instead of raising. Mirrors test_e10_linux_resolve_headless_invokes_xvfb_dispatcher."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    started = []
+    stopped = []
+
+    class FakeDisplay:
+        def start(self):
+            started.append(True)
+        def stop(self):
+            stopped.append(True)
+
+    from invisible_playwright import launcher as _l
+    monkeypatch.setattr(_l, "make_virtual_display", lambda: FakeDisplay())
+
+    ip = InvisiblePlaywright(headless=True, binary_path="/fake")
+    result = ip._resolve_headless()
+    assert result is False
+    assert len(started) == 1
+    assert ip._virtual_display is not None
+
+
+@pytest.mark.e2e
+def test_darwin_teardown_stops_virtual_display_and_is_idempotent(monkeypatch):
+    """Teardown calls stop() on the virtual display. Second stop() is safe.
+    Mirrors test_e11_linux_teardown_stops_virtual_display_and_is_idempotent."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    stop_count = []
+
+    class FakeDisplay:
+        def start(self):
+            pass
+        def stop(self):
+            stop_count.append(True)
+
+    from invisible_playwright import launcher as _l
+    monkeypatch.setattr(_l, "make_virtual_display", lambda: FakeDisplay())
+
+    ip = InvisiblePlaywright(headless=True, binary_path="/fake")
+    ip._resolve_headless()
+    ip._teardown()
+    ip._teardown()
+    assert len(stop_count) == 1  # second teardown skips (vd set to None)
 
 
 @pytest.mark.e2e

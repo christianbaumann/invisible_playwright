@@ -20,6 +20,7 @@ import pytest
 import invisible_playwright._headless as headless
 from invisible_playwright._headless import (
     _LinuxVirtualDisplay,
+    _MacOSVirtualDisplay,
     _WindowsVirtualDesktop,
     make_virtual_display,
 )
@@ -50,25 +51,17 @@ def test_make_virtual_display_accepts_linux_variants(monkeypatch):
 
 
 @pytest.mark.unit
-def test_make_virtual_display_raises_on_darwin(monkeypatch):
-    """macOS headless is not yet implemented — the dispatcher must raise
-    with a clear message directing users to headed mode."""
+def test_make_virtual_display_returns_macos_display_on_darwin(monkeypatch):
+    """Dispatcher returns _MacOSVirtualDisplay on darwin."""
     monkeypatch.setattr(headless.sys, "platform", "darwin")
-    with pytest.raises(RuntimeError, match="not yet supported on macOS"):
-        make_virtual_display()
-
-
-@pytest.mark.unit
-def test_make_virtual_display_darwin_error_suggests_headed_mode(monkeypatch):
-    monkeypatch.setattr(headless.sys, "platform", "darwin")
-    with pytest.raises(RuntimeError, match="headless=False"):
-        make_virtual_display()
+    vd = make_virtual_display()
+    assert isinstance(vd, _MacOSVirtualDisplay)
 
 
 @pytest.mark.unit
 def test_make_virtual_display_raises_on_unsupported_platform(monkeypatch):
     monkeypatch.setattr(headless.sys, "platform", "freebsd14")
-    with pytest.raises(RuntimeError, match="Windows and Linux only"):
+    with pytest.raises(RuntimeError, match="Windows, Linux, and macOS only"):
         make_virtual_display()
 
 
@@ -154,3 +147,82 @@ def test_linux_virtual_display_stop_without_start_is_safe():
     vd.stop()
     assert vd._proc is None
     assert vd._display is None
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  _MacOSVirtualDisplay — construction-only + error-path tests.
+#  ``start()`` creates a real CGVirtualDisplay on macOS; we only test
+#  construction state and error paths that don't require Aqua/PyObjC.
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+def test_macos_virtual_display_initial_state_is_clean():
+    """Construction must not import PyObjC or allocate resources —
+    only start() does. Matches Windows/Linux pattern."""
+    vd = _MacOSVirtualDisplay()
+    assert vd._display is None
+    assert vd._display_id is None
+    assert vd._saved_origins == {}
+
+
+@pytest.mark.unit
+def test_macos_virtual_display_default_dimensions():
+    """Default resolution matches the profile sampler's default screen."""
+    vd = _MacOSVirtualDisplay()
+    assert vd._width == 1920
+    assert vd._height == 1080
+
+
+@pytest.mark.unit
+def test_macos_virtual_display_custom_dimensions():
+    """Caller-supplied width/height stored for use in start()."""
+    vd = _MacOSVirtualDisplay(width=2560, height=1440)
+    assert vd._width == 2560
+    assert vd._height == 1440
+
+
+@pytest.mark.unit
+def test_macos_virtual_display_stop_without_start_is_safe():
+    """stop() before start() is a no-op — supports __exit__ on failed launch."""
+    vd = _MacOSVirtualDisplay()
+    vd.stop()
+    vd.stop()
+    assert vd._display is None
+    assert vd._display_id is None
+    assert vd._saved_origins == {}
+
+
+@pytest.mark.unit
+def test_macos_start_raises_when_pyobjc_missing(monkeypatch):
+    """Clear error when pyobjc-framework-Quartz is not installed."""
+    import builtins
+    real_import = builtins.__import__
+
+    def block_pyobjc(name, *args, **kwargs):
+        if name in ("objc", "Quartz"):
+            raise ImportError(f"No module named '{name}'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", block_pyobjc)
+    vd = _MacOSVirtualDisplay()
+    with pytest.raises(RuntimeError, match="pyobjc-framework-Quartz"):
+        vd.start()
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(sys.platform != "darwin", reason="needs PyObjC importable")
+def test_macos_start_raises_when_cgvirtualdisplay_unavailable(monkeypatch):
+    """Clear error when CGVirtualDisplay class not found (macOS < 14)."""
+    import objc
+    _real = objc.lookUpClass
+
+    def _fake(name):
+        if name == "CGVirtualDisplay":
+            return None
+        return _real(name)
+
+    monkeypatch.setattr(objc, "lookUpClass", _fake)
+    vd = _MacOSVirtualDisplay()
+    with pytest.raises(RuntimeError, match="macOS 14"):
+        vd.start()

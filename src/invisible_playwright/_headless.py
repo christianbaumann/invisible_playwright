@@ -209,6 +209,128 @@ class _WindowsVirtualDesktop:
             self._desktop = None
 
 
+class _MacOSVirtualDisplay:
+    """A CGVirtualDisplay that Firefox renders onto.
+
+    Creates a virtual monitor via CoreGraphics and makes it the primary
+    display so new windows (Firefox) open there. The user's physical
+    display arrangement is briefly disrupted during the browser session
+    and restored on stop().
+
+    Requires macOS 14+ and an active Aqua session (logged-in GUI user
+    with WindowServer running). Does not work in SSH-only or headless CI
+    environments without auto-login configured.
+    """
+
+    def __init__(self, width: int = 1920, height: int = 1080) -> None:
+        self._width = width
+        self._height = height
+        self._display = None          # CGVirtualDisplay ObjC object
+        self._display_id = None       # CGDirectDisplayID (int)
+        self._saved_origins = {}      # {display_id: (x, y)} to restore on stop()
+
+    def start(self) -> None:
+        try:
+            import objc
+            import Quartz
+        except ImportError as e:
+            raise RuntimeError(
+                "invisible_playwright headless=True on macOS requires "
+                "pyobjc-framework-Quartz. "
+                "Install it: pip install pyobjc-framework-Quartz"
+            ) from e
+
+        objc.loadBundle(
+            'CoreGraphics', globals(),
+            '/System/Library/Frameworks/CoreGraphics.framework',
+        )
+
+        CGVirtualDisplay_ = objc.lookUpClass('CGVirtualDisplay')
+        if CGVirtualDisplay_ is None:
+            raise RuntimeError(
+                "CGVirtualDisplay not available — macOS 14+ (Sonoma) required."
+            )
+
+        # Create descriptor
+        Desc = objc.lookUpClass('CGVirtualDisplayDescriptor')
+        desc = Desc.alloc().init()
+        desc.setName_('InvisiblePlaywrightVD')
+        desc.setMaxPixelsWide_(self._width)
+        desc.setMaxPixelsHigh_(self._height)
+        desc.setSizeInMillimeters_((800, 450))
+        desc.setVendorID_(0x1234)
+        desc.setProductID_(0x5678)
+        desc.setSerialNum_(1)
+
+        # Create virtual display
+        self._display = CGVirtualDisplay_.alloc().initWithDescriptor_(desc)
+        self._display_id = self._display.displayID()
+
+        # Configure mode and resolution
+        Mode = objc.lookUpClass('CGVirtualDisplayMode')
+        mode = Mode.alloc().initWithWidth_height_refreshRate_(
+            self._width, self._height, 60.0,
+        )
+        Settings = objc.lookUpClass('CGVirtualDisplaySettings')
+        settings = Settings.alloc().init()
+        settings.setModes_([mode])
+        settings.setHiDPI_(0)
+
+        if not self._display.applySettings_(settings):
+            self._display = None
+            self._display_id = None
+            raise RuntimeError(
+                "CGVirtualDisplay.applySettings_ failed. "
+                "Ensure an Aqua session is active (logged-in GUI user "
+                "with WindowServer running)."
+            )
+
+        # Make virtual display primary so Firefox windows open there
+        self._make_primary(Quartz)
+
+    def _save_display_layout(self, Quartz) -> None:
+        err, display_ids, count = Quartz.CGGetOnlineDisplayList(16, None, None)
+        if err == 0 and display_ids:
+            for did in display_ids[:count]:
+                bounds = Quartz.CGDisplayBounds(did)
+                self._saved_origins[did] = (
+                    int(bounds.origin.x), int(bounds.origin.y),
+                )
+
+    def _make_primary(self, Quartz) -> None:
+        import ctypes
+        self._save_display_layout(Quartz)
+        cg = ctypes.cdll.LoadLibrary(
+            "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics"
+        )
+        config = ctypes.c_void_p()
+        cg.CGBeginDisplayConfiguration(ctypes.byref(config))
+        cg.CGConfigureDisplayOrigin(config, self._display_id, 0, 0)
+        # kCGConfigureForSession = 1 (temporary, not persisted across reboot)
+        cg.CGCompleteDisplayConfiguration(config, 1)
+
+    def _restore_layout(self) -> None:
+        if not self._saved_origins:
+            return
+        import ctypes
+        cg = ctypes.cdll.LoadLibrary(
+            "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics"
+        )
+        config = ctypes.c_void_p()
+        cg.CGBeginDisplayConfiguration(ctypes.byref(config))
+        for did, (x, y) in self._saved_origins.items():
+            if did == self._display_id:
+                continue  # virtual display is about to be destroyed
+            cg.CGConfigureDisplayOrigin(config, did, x, y)
+        cg.CGCompleteDisplayConfiguration(config, 1)
+        self._saved_origins.clear()
+
+    def stop(self) -> None:
+        self._restore_layout()
+        self._display = None
+        self._display_id = None
+
+
 def make_virtual_display():
     """Return a started/stoppable virtual-display object for this platform."""
     if sys.platform == "win32":
@@ -216,12 +338,10 @@ def make_virtual_display():
     if sys.platform.startswith("linux"):
         return _LinuxVirtualDisplay()
     if sys.platform == "darwin":
-        raise RuntimeError(
-            "invisible_playwright headless=True is not yet supported on macOS. "
-            "Use headless=False (the default) for headed mode."
-        )
+        return _MacOSVirtualDisplay()
     raise RuntimeError(
-        f"invisible_playwright supports Windows and Linux only (got {sys.platform!r})"
+        f"invisible_playwright supports Windows, Linux, and macOS only "
+        f"(got {sys.platform!r})"
     )
 
 
