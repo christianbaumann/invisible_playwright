@@ -253,7 +253,7 @@ def test_github_token_none_when_unset(monkeypatch):
 # Bonus coverage: unsupported platform raises NotImplementedError before any HTTP
 @pytest.mark.unit
 def test_ensure_binary_unsupported_platform_raises(monkeypatch):
-    monkeypatch.setattr("sys.platform", "darwin")
+    monkeypatch.setattr("sys.platform", "freebsd")
     import platform
     monkeypatch.setattr(platform, "machine", lambda: "AMD64")
     with pytest.raises(NotImplementedError, match="unsupported platform"):
@@ -372,6 +372,122 @@ def test_ensure_binary_missing_entry_after_extract_raises_linux(tmp_path, monkey
     monkeypatch.setattr("sys.platform", "linux")
     import platform
     monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+
+    with pytest.raises(RuntimeError, match="binary not found after extraction"):
+        ensure_binary()
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  macOS platform tests — exercise the tar.gz extraction path with the
+#  .app bundle binary entry (Firefox.app/Contents/MacOS/firefox).
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+@responses.activate
+def test_ensure_binary_downloads_and_verifies_macos(tmp_path, monkeypatch):
+    """macOS happy path: tar.gz download → SHA256 check → extract → return path."""
+    cache = tmp_path / "cache"
+    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
+
+    archive_path = tmp_path / "archive.tar.gz"
+    entry = "Firefox.app/Contents/MacOS/firefox"
+    archive_bytes = _make_targz(archive_path, entry, b"MACHO!")
+    archive_sha = hashlib.sha256(archive_bytes).hexdigest()
+    from invisible_playwright.constants import ARCHIVE_NAME
+    asset = ARCHIVE_NAME("darwin", "arm64")
+
+    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
+    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+
+    responses.add(responses.GET, url_archive, body=archive_bytes, status=200,
+                  content_type="application/gzip")
+    responses.add(responses.GET, url_sums,
+                  body=f"{archive_sha}  {asset}\n", status=200)
+
+    monkeypatch.setattr("sys.platform", "darwin")
+    import platform
+    monkeypatch.setattr(platform, "machine", lambda: "arm64")
+
+    path = ensure_binary()
+    assert Path(path).exists()
+    assert Path(path).name == "firefox"
+
+
+@pytest.mark.unit
+@responses.activate
+def test_ensure_binary_rejects_sha_mismatch_macos(tmp_path, monkeypatch):
+    """macOS SHA mismatch must raise before extraction."""
+    cache = tmp_path / "cache"
+    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
+    archive_path = tmp_path / "archive.tar.gz"
+    entry = "Firefox.app/Contents/MacOS/firefox"
+    archive_bytes = _make_targz(archive_path, entry, b"MACHO!")
+    wrong_sha = "0" * 64
+    from invisible_playwright.constants import ARCHIVE_NAME
+    asset = ARCHIVE_NAME("darwin", "arm64")
+
+    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
+    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+    responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
+    responses.add(responses.GET, url_sums, body=f"{wrong_sha}  {asset}\n", status=200)
+
+    monkeypatch.setattr("sys.platform", "darwin")
+    import platform
+    monkeypatch.setattr(platform, "machine", lambda: "arm64")
+
+    with pytest.raises(RuntimeError, match="SHA256"):
+        ensure_binary()
+
+
+@pytest.mark.unit
+def test_ensure_binary_cache_hit_skips_http_macos(tmp_path, monkeypatch):
+    """macOS cache hit short-circuits before any HTTP. Looks for the
+    .app bundle entry per BINARY_ENTRY_REL."""
+    cache = tmp_path / "cache"
+    version_dir = cache / BINARY_VERSION
+    entry_dir = version_dir / "Firefox.app" / "Contents" / "MacOS"
+    entry_dir.mkdir(parents=True)
+    pre_cached = entry_dir / "firefox"
+    pre_cached.write_text("cached-content")
+
+    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
+    monkeypatch.setattr("sys.platform", "darwin")
+    import platform
+    monkeypatch.setattr(platform, "machine", lambda: "arm64")
+
+    def _fail_get(*args, **kwargs):
+        raise AssertionError("HTTP must not be called on cache hit")
+    monkeypatch.setattr("invisible_playwright.download.requests.get", _fail_get)
+
+    path = ensure_binary()
+    assert path == pre_cached
+    assert path.read_text() == "cached-content"
+
+
+@pytest.mark.unit
+@responses.activate
+def test_ensure_binary_missing_entry_after_extract_raises_macos(tmp_path, monkeypatch):
+    """macOS post-extract sanity check: if the tar.gz lacks the .app bundle
+    entry, raise rather than returning a non-existent path."""
+    cache = tmp_path / "cache"
+    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
+
+    archive_path = tmp_path / "archive.tar.gz"
+    archive_bytes = _make_targz(archive_path, "other.bin", b"X")
+    archive_sha = hashlib.sha256(archive_bytes).hexdigest()
+    from invisible_playwright.constants import ARCHIVE_NAME
+    asset = ARCHIVE_NAME("darwin", "arm64")
+
+    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
+    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+
+    responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
+    responses.add(responses.GET, url_sums, body=f"{archive_sha}  {asset}\n", status=200)
+
+    monkeypatch.setattr("sys.platform", "darwin")
+    import platform
+    monkeypatch.setattr(platform, "machine", lambda: "arm64")
 
     with pytest.raises(RuntimeError, match="binary not found after extraction"):
         ensure_binary()

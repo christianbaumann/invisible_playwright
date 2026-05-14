@@ -26,6 +26,8 @@ def ARCHIVE_NAME(platform_key: str, machine: str) -> str:
     m = machine.lower()
     if m in {"amd64", "x86_64"}:
         arch = "x86_64"
+    elif m == "arm64":
+        arch = "arm64"
     else:
         raise NotImplementedError(f"unsupported arch: {machine}")
 
@@ -33,6 +35,8 @@ def ARCHIVE_NAME(platform_key: str, machine: str) -> str:
         return f"{BINARY_BASENAME}-win-{arch}.zip"
     if pk == "linux":
         return f"{BINARY_BASENAME}-linux-{arch}.tar.gz"
+    if pk == "darwin":
+        return f"{BINARY_BASENAME}-macos-{arch}.tar.gz"
     raise NotImplementedError(f"unsupported platform: {platform_key}")
 
 
@@ -40,6 +44,7 @@ def ARCHIVE_NAME(platform_key: str, machine: str) -> str:
 BINARY_ENTRY_REL = {
     "win32": "firefox.exe",
     "linux": "firefox",
+    "darwin": "Firefox.app/Contents/MacOS/firefox",
 }
 
 # GitHub release URL template. The "TODO" owner is resolved at publication time.
