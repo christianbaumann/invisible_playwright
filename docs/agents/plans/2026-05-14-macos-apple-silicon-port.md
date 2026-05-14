@@ -309,7 +309,7 @@ Replace the generic "Windows and Linux only" RuntimeError with a clear "macOS he
 
 ### Changes Required:
 
-#### [ ] 1. Add darwin-specific error in `make_virtual_display()`
+#### [x] 1. Add darwin-specific error in `make_virtual_display()`
 **File**: `src/invisible_playwright/_headless.py`
 **Lines**: 212-223
 
@@ -330,7 +330,7 @@ def make_virtual_display():
     )
 ```
 
-#### [ ] 2. Update darwin headless test
+#### [x] 2. Update darwin headless test
 **File**: `tests/test_headless.py`
 
 Update `test_make_virtual_display_raises_on_darwin` — match the new error message:
@@ -356,16 +356,16 @@ def test_make_virtual_display_darwin_error_suggests_headed_mode(monkeypatch):
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_headless.py -v` — all pass
-- [ ] `pytest` — full suite passes
+- [x] `pytest tests/test_headless.py -v` — all pass
+- [x] `pytest` — full suite passes
 
 #### Manual Verification:
 - [ ] Review error message is clear and actionable
 
 #### Phase Gate:
-- [ ] Run `pytest` — all tests pass, fix any failures
-- [ ] Update plan status for Phase 3 to `complete`
-- [ ] Commit changes
+- [x] Run `pytest` — all tests pass, fix any failures
+- [x] Update plan status for Phase 3 to `complete`
+- [x] Commit changes
 - [ ] Pause for confirmation before proceeding to Phase 4
 
 ---
@@ -481,8 +481,8 @@ Each changed function is tested by systematically partitioning inputs:
 - [ ] `test_virtual_display_no_op_on_darwin` `[NEG]`
 
 #### Updated darwin tests in test_headless.py:
-- [ ] `test_make_virtual_display_raises_on_darwin` — updated match string `[HAPPY]`
-- [ ] `test_make_virtual_display_darwin_error_suggests_headed_mode` `[HAPPY]`
+- [x] `test_make_virtual_display_raises_on_darwin` — updated match string `[HAPPY]`
+- [x] `test_make_virtual_display_darwin_error_suggests_headed_mode` `[HAPPY]`
 
 #### Regression — Existing tests must still pass:
 - [ ] All existing `test_constants.py` tests (except updated unsupported test)

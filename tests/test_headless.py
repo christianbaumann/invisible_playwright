@@ -51,12 +51,17 @@ def test_make_virtual_display_accepts_linux_variants(monkeypatch):
 
 @pytest.mark.unit
 def test_make_virtual_display_raises_on_darwin(monkeypatch):
-    """macOS is unsupported — the dispatcher must raise with a clear
-    message rather than returning a no-op shim. ``InvisiblePlaywright``
-    relies on this to bail before launching Firefox on a system where
-    the patched binary doesn't exist."""
+    """macOS headless is not yet implemented — the dispatcher must raise
+    with a clear message directing users to headed mode."""
     monkeypatch.setattr(headless.sys, "platform", "darwin")
-    with pytest.raises(RuntimeError, match="Windows and Linux only"):
+    with pytest.raises(RuntimeError, match="not yet supported on macOS"):
+        make_virtual_display()
+
+
+@pytest.mark.unit
+def test_make_virtual_display_darwin_error_suggests_headed_mode(monkeypatch):
+    monkeypatch.setattr(headless.sys, "platform", "darwin")
+    with pytest.raises(RuntimeError, match="headless=False"):
         make_virtual_display()
 
 

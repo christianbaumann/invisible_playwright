@@ -210,14 +210,16 @@ class _WindowsVirtualDesktop:
 
 
 def make_virtual_display():
-    """Return a started/stoppable virtual-display object for this platform.
-
-    InvisiblePlaywright supports Windows x86_64 and Linux x86_64 only.
-    """
+    """Return a started/stoppable virtual-display object for this platform."""
     if sys.platform == "win32":
         return _WindowsVirtualDesktop()
     if sys.platform.startswith("linux"):
         return _LinuxVirtualDisplay()
+    if sys.platform == "darwin":
+        raise RuntimeError(
+            "invisible_playwright headless=True is not yet supported on macOS. "
+            "Use headless=False (the default) for headed mode."
+        )
     raise RuntimeError(
         f"invisible_playwright supports Windows and Linux only (got {sys.platform!r})"
     )
