@@ -291,14 +291,14 @@ New tests (mirroring existing Linux/Windows test patterns):
 - [x] `pytest` — full suite passes
 
 #### Manual Verification:
-- [ ] Review that darwin prefs match Linux pattern (GPU spoofing, extension whitelist, font factors)
-- [ ] Review that no Windows-only or Linux-only prefs leak into darwin
+- [x] Review that darwin prefs match Linux pattern (GPU spoofing, extension whitelist, font factors)
+- [x] Review that no Windows-only or Linux-only prefs leak into darwin
 
 #### Phase Gate:
 - [x] Run `pytest` — all tests pass, fix any failures
 - [x] Update plan status for Phase 2 to `complete`
 - [x] Commit changes
-- [ ] Pause for confirmation before proceeding to Phase 3
+- [x] Pause for confirmation before proceeding to Phase 3
 
 ---
 
@@ -360,13 +360,13 @@ def test_make_virtual_display_darwin_error_suggests_headed_mode(monkeypatch):
 - [x] `pytest` — full suite passes
 
 #### Manual Verification:
-- [ ] Review error message is clear and actionable
+- [x] Review error message is clear and actionable
 
 #### Phase Gate:
 - [x] Run `pytest` — all tests pass, fix any failures
 - [x] Update plan status for Phase 3 to `complete`
 - [x] Commit changes
-- [ ] Pause for confirmation before proceeding to Phase 4
+- [x] Pause for confirmation before proceeding to Phase 4
 
 ---
 
@@ -401,7 +401,7 @@ New tests (mirroring existing Linux/Windows integration test patterns):
 - [x] Run `pytest` — all tests pass, fix any failures
 - [x] Update plan status for Phase 4 to `complete`
 - [x] Commit changes
-- [ ] Pause for confirmation before proceeding to Phase 5
+- [x] Pause for confirmation before proceeding to Phase 5
 
 ---
 
@@ -436,8 +436,8 @@ New tests (do NOT require the patched binary — use monkeypatch):
 #### Phase Gate:
 - [x] Run `pytest` — all tests pass, fix any failures
 - [x] Update plan status for Phase 5 to `complete`
-- [ ] Commit changes
-- [ ] Pause for confirmation before proceeding
+- [x] Commit changes
+- [x] Pause for confirmation before proceeding
 
 ---
 

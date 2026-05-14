@@ -106,7 +106,7 @@ pip install invisible-playwright
 python -m invisible_playwright fetch      # one-time ~100 MB download, SHA256-verified
 ```
 
-Supported platforms: **Windows x86_64**, **Linux x86_64**.
+Supported platforms: **Windows x86_64**, **Linux x86_64**, **macOS Apple Silicon** (headed mode only — headless not yet supported).
 
 ---
 
