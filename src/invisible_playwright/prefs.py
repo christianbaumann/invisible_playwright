@@ -190,6 +190,15 @@ _LINUX_GENERIC_FONT_FACTORS = (
     "system-ui|0.910,cursive|0.932,fantasy|0.812,"
 )
 
+# macOS font compensation — CoreText advances differ from DirectWrite.
+# PLACEHOLDER: values copied from Linux as a starting point. Must be
+# calibrated empirically by measuring CoreText rendering of FP Pro probe
+# strings and comparing to Windows DirectWrite target widths.
+_MACOS_GENERIC_FONT_FACTORS = (
+    "serif|0.920,sans-serif|0.889,monospace|1.000,"
+    "system-ui|0.910,cursive|0.932,fantasy|0.812,"
+)
+
 
 # ──────────────────────────────────────────────────────────────────────
 #  Baseline — applied to every session regardless of Profile.
@@ -415,6 +424,8 @@ def _font_metrics_for_platform(profile_metrics: str) -> str:
         return ""
     if sys.platform.startswith("linux"):
         return _LINUX_GENERIC_FONT_FACTORS + profile_metrics
+    if sys.platform == "darwin":
+        return _MACOS_GENERIC_FONT_FACTORS + profile_metrics
     return ""  # Windows: NEVER apply width-scale factors.
 
 
@@ -449,7 +460,7 @@ def translate_profile_to_prefs(
     # ML scores at ~0.70 (confirmed: direct SF146 vs vanilla on same machine).
     # Fix: leave renderer/vendor empty on Windows → ANGLE reports native hardware
     # (SanitizeRenderer path at ClientWebGLContext.cpp:2592-2595) → consistent.
-    if sys.platform.startswith("linux"):
+    if sys.platform.startswith("linux") or sys.platform == "darwin":
         prefs["zoom.stealth.webgl.renderer"] = profile.gpu.renderer
         prefs["zoom.stealth.webgl.vendor"]   = profile.gpu.vendor
         _renderer_lo = (profile.gpu.renderer or "").lower()
@@ -462,7 +473,9 @@ def translate_profile_to_prefs(
     # constant across all sessions. Different MSAA values cause different CN-set
     # parameters hashes even with the same renderer → detectable variation.
     # Vanilla Intel Arc A750 parameters hash (66544db8) verified at msaa=4.
-    _msaa = profile.webgl.msaa_samples if sys.platform.startswith("linux") else 4
+    _msaa = profile.webgl.msaa_samples if (
+        sys.platform.startswith("linux") or sys.platform == "darwin"
+    ) else 4
     prefs["zoom.stealth.webgl.msaa"]        = _msaa
     prefs["webgl.msaa-samples"]             = _msaa
     prefs["webgl.msaa-force"]               = _msaa > 0
@@ -539,7 +552,7 @@ def translate_profile_to_prefs(
     # The baseline hard-codes a curated _WEBGL1/2_EXTENSIONS list designed for
     # Linux Mesa → clear it so Windows sessions report the native extension set
     # (hash matches real Intel Arc A750 vanilla captures).
-    if not sys.platform.startswith("linux"):
+    if sys.platform == "win32":
         prefs["zoom.stealth.webgl.extensions"]  = ""
         prefs["zoom.stealth.webgl2.extensions"] = ""
 

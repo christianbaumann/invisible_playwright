@@ -173,8 +173,8 @@ New tests:
 #### Phase Gate:
 - [x] Run `pytest` — all tests pass, fix any failures
 - [x] Update plan status for Phase 1 to `complete`
-- [-] Commit changes
-- [ ] Pause for confirmation before proceeding to Phase 2
+- [x] Commit changes
+- [x] Pause for confirmation before proceeding to Phase 2
 
 ---
 
@@ -185,7 +185,7 @@ Add macOS handling to the 4 platform-conditional blocks in `prefs.py`. macOS get
 
 ### Changes Required:
 
-#### [ ] 1. Add `_MACOS_GENERIC_FONT_FACTORS` placeholder
+#### [x] 1. Add `_MACOS_GENERIC_FONT_FACTORS` placeholder
 **File**: `src/invisible_playwright/prefs.py`
 **After**: `_LINUX_GENERIC_FONT_FACTORS` (line 191)
 
@@ -200,7 +200,7 @@ _MACOS_GENERIC_FONT_FACTORS = (
 )
 ```
 
-#### [ ] 2. Update `_font_metrics_for_platform()` for darwin
+#### [x] 2. Update `_font_metrics_for_platform()` for darwin
 **File**: `src/invisible_playwright/prefs.py`
 **Lines**: 400-418
 
@@ -215,7 +215,7 @@ def _font_metrics_for_platform(profile_metrics: str) -> str:
     return ""  # Windows: NEVER apply width-scale factors.
 ```
 
-#### [ ] 3. Update GPU renderer block for darwin
+#### [x] 3. Update GPU renderer block for darwin
 **File**: `src/invisible_playwright/prefs.py`
 **Lines**: 452-459
 
@@ -232,7 +232,7 @@ else:
     _renderer_lo = "intel"  # test hardware is Intel Arc A750
 ```
 
-#### [ ] 4. Update MSAA block for darwin
+#### [x] 4. Update MSAA block for darwin
 **File**: `src/invisible_playwright/prefs.py`
 **Line**: 465
 
@@ -242,7 +242,7 @@ _msaa = profile.webgl.msaa_samples if (
 ) else 4
 ```
 
-#### [ ] 5. Update WebGL extensions block for darwin
+#### [x] 5. Update WebGL extensions block for darwin
 **File**: `src/invisible_playwright/prefs.py`
 **Lines**: 542-544
 
@@ -256,19 +256,19 @@ if sys.platform == "win32":
 
 This replaces `if not sys.platform.startswith("linux")` — now only Windows clears extensions. Both Linux and macOS keep the curated baseline list.
 
-#### [ ] 6. Verify Xvfb workarounds are NOT applied on darwin
+#### [x] 6. Verify Xvfb workarounds are NOT applied on darwin
 **File**: `src/invisible_playwright/prefs.py`
 **Lines**: 547-549
 
 No change needed. The existing `if sys.platform.startswith("linux")` correctly excludes darwin. Verify with a test.
 
-#### [ ] 7. Verify Windows virtual desktop workarounds are NOT applied on darwin
+#### [x] 7. Verify Windows virtual desktop workarounds are NOT applied on darwin
 **File**: `src/invisible_playwright/prefs.py`
 **Lines**: 552-554
 
 No change needed. The existing `if virtual_display and sys.platform == "win32"` correctly excludes darwin. Verify with a test.
 
-#### [ ] 8. Add darwin prefs tests
+#### [x] 8. Add darwin prefs tests
 **File**: `tests/test_prefs.py`
 
 New tests (mirroring existing Linux/Windows test patterns):
@@ -287,17 +287,17 @@ New tests (mirroring existing Linux/Windows test patterns):
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `pytest tests/test_prefs.py -v` — all pass (existing + new darwin tests)
-- [ ] `pytest` — full suite passes
+- [x] `pytest tests/test_prefs.py -v` — all pass (existing + new darwin tests)
+- [x] `pytest` — full suite passes
 
 #### Manual Verification:
 - [ ] Review that darwin prefs match Linux pattern (GPU spoofing, extension whitelist, font factors)
 - [ ] Review that no Windows-only or Linux-only prefs leak into darwin
 
 #### Phase Gate:
-- [ ] Run `pytest` — all tests pass, fix any failures
-- [ ] Update plan status for Phase 2 to `complete`
-- [ ] Commit changes
+- [x] Run `pytest` — all tests pass, fix any failures
+- [x] Update plan status for Phase 2 to `complete`
+- [x] Commit changes
 - [ ] Pause for confirmation before proceeding to Phase 3
 
 ---

@@ -6,6 +6,7 @@ import pytest
 from invisible_playwright._fpforge import generate_profile
 from invisible_playwright.prefs import (
     _LINUX_GENERIC_FONT_FACTORS,
+    _MACOS_GENERIC_FONT_FACTORS,
     _accept_language,
     _font_metrics_for_platform,
     _WIN_LIGHT_COLORS,
@@ -510,6 +511,113 @@ def test_virtual_display_no_op_on_linux(monkeypatch):
     # alt-desktop GPU sandbox workaround). Even when True, Linux must
     # not pick up ``security.sandbox.gpu.level``.
     monkeypatch.setattr(sys, "platform", "linux")
+    p = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(p, virtual_display=True)
+    assert "security.sandbox.gpu.level" not in prefs
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  macOS (darwin) — exercise the branches that fire when
+#  ``sys.platform == "darwin"``. Patched via ``monkeypatch`` so these
+#  run on any host CI environment.
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+def test_font_metrics_darwin_prepends_generic_factors(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    out = _font_metrics_for_platform("Arial|1.0,Verdana|0.9,")
+    assert out.startswith(_MACOS_GENERIC_FONT_FACTORS)
+    assert out.endswith("Arial|1.0,Verdana|0.9,")
+
+
+@pytest.mark.unit
+def test_font_metrics_darwin_empty_input_returns_empty(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    assert _font_metrics_for_platform("") == ""
+
+
+@pytest.mark.unit
+def test_gpu_renderer_set_from_profile_on_darwin(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    p = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(p)
+    assert prefs["zoom.stealth.webgl.renderer"] == p.gpu.renderer
+    assert prefs["zoom.stealth.webgl.vendor"] == p.gpu.vendor
+    assert prefs["zoom.stealth.webgl.renderer"]  # non-empty
+
+
+@pytest.mark.unit
+def test_msaa_from_profile_on_darwin(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    p = generate_profile(seed=42, pin={"webgl.msaa_samples": 8})
+    prefs = translate_profile_to_prefs(p)
+    assert prefs["zoom.stealth.webgl.msaa"] == 8
+    assert prefs["webgl.msaa-samples"] == 8
+    assert prefs["webgl.msaa-force"] is True
+
+
+@pytest.mark.unit
+def test_msaa_zero_disables_force_on_darwin(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    p = generate_profile(seed=42, pin={"webgl.msaa_samples": 0})
+    prefs = translate_profile_to_prefs(p)
+    assert prefs["zoom.stealth.webgl.msaa"] == 0
+    assert prefs["webgl.msaa-force"] is False
+
+
+@pytest.mark.unit
+def test_canvas_noise_mask_intel_on_darwin(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    p = generate_profile(
+        seed=42,
+        pin={
+            "gpu.renderer": "ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            "gpu.vendor": "Google Inc. (Intel)",
+        },
+    )
+    prefs = translate_profile_to_prefs(p)
+    assert prefs["zoom.stealth.canvas.noise_skip_mask"] == 15
+
+
+@pytest.mark.unit
+def test_canvas_noise_mask_nvidia_on_darwin(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    p = generate_profile(
+        seed=42,
+        pin={
+            "gpu.renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            "gpu.vendor": "Google Inc. (NVIDIA)",
+        },
+    )
+    prefs = translate_profile_to_prefs(p)
+    assert prefs["zoom.stealth.canvas.noise_skip_mask"] == 7
+
+
+@pytest.mark.unit
+def test_webgl_extensions_preserved_on_darwin(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    p = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(p)
+    assert prefs["zoom.stealth.webgl.extensions"]
+    assert prefs["zoom.stealth.webgl2.extensions"]
+    assert "ANGLE_instanced_arrays" in prefs["zoom.stealth.webgl.extensions"]
+    assert "OVR_multiview2" in prefs["zoom.stealth.webgl2.extensions"]
+
+
+@pytest.mark.unit
+def test_xvfb_workarounds_absent_on_darwin(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    p = generate_profile(seed=42)
+    prefs = translate_profile_to_prefs(p)
+    assert "gfx.webrender.all" not in prefs
+    assert "gfx.webrender.force-disabled" not in prefs
+    assert "webgl.force-enabled" not in prefs
+
+
+@pytest.mark.unit
+def test_virtual_display_no_op_on_darwin(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
     p = generate_profile(seed=42)
     prefs = translate_profile_to_prefs(p, virtual_display=True)
     assert "security.sandbox.gpu.level" not in prefs
